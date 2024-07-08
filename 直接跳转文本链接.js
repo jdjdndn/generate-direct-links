@@ -65,13 +65,13 @@
               const fullText = node.textContent.trim()
               const index = fullText.indexOf(match)
               const beforeText = index !== 0 ? fullText.substring(0, index) : ''
-              const afterText = index + match.length > fullText.length ? fullText.substring(index + match.length) : ''
-
+              const afterText = index + match.length < fullText.length ? fullText.substring(index + match.length) : ''
 
               let beforeTextNode = beforeText && document.createTextNode(beforeText);
               let afterTextNode = afterText && document.createTextNode(afterText);
               beforeTextNode && node.parentNode.insertBefore(beforeTextNode, node)
-              afterTextNode && node.parentNode.appendChild(afterTextNode)
+              // 修改appendChild为insertBefore，解决插入位置问题，如果当前节点有兄弟节点，就插兄弟节点前面，没有就插最后面
+              afterTextNode && node.nextSibling ? node.parentNode.insertBefore(afterTextNode, node.nextSibling) : node.parentNode.appendChild(afterTextNode)
 
               node.parentNode.replaceChild(wrapper, node);
             } catch (error) { }
