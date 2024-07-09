@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         直接跳转文本链接
+// @name         yc-直接跳转文本链接
 // @namespace    http://tampermonkey.net/
 // @version      0.1
 // @description  识别并直接跳转普通文本链接
-// @author       You
+// @author       wcbblll
 // @match        *://*/*
 // @grant        none
 // ==/UserScript==
