@@ -11,8 +11,87 @@
 (function () {
   'use strict';
 
+  // 移除重复项
   function removeDuplicates(arr) {
     return arr.filter((item, index, self) => self.indexOf(item) === index);
+  }
+
+  // 从后往前遍历数组
+
+  function traverseArrayBackward(arr, callback) {
+    for (let i = arr.length - 1; i >= 0; i--) {
+      callback(arr[i], i, i === 0);
+    }
+  }
+
+  // 文本全局匹配链接返回数组，数组里面是字符串
+  function getTextLinks(text) {
+    const linkRegex = /http[s]?:\/\/[^\s\/$.?#].[^\s]*/g;
+    const links = text.match(linkRegex);
+    return links || [];
+  }
+
+  // 文本全局匹配链接返回数组，数组里面是对象
+  function getTextLinksList(text) {
+    const linkRegex = /http[s]?:\/\/[^\s\/$.?#].[^\s]*/g;
+    const matches = text.matchAll(linkRegex);
+    const matchArr = []
+    for (const match of matches) {
+      matchArr.push(match)
+    }
+    return matchArr
+  }
+
+  /**
+   * Splits a given text into an array of objects, where each object represents a segment of the text.
+   *
+   * @param {string} text - The text to be split.
+   * @param {Array<Object>} arr - An array of objects, where each object contains a link and its index in the text.
+   * @return {Array<Object>} An array of objects, where each object represents a segment of the text.
+   */
+  function splitText(text, arr) {
+    if (!arr.length) return [{ text, type: 'text' }]
+    let lastIndex = 0
+    let returnArr = []
+    arr.forEach((item, i) => {
+      const link = item[0]
+      const textObj = { text: text.slice(lastIndex, item.index), type: 'text' }
+      const linkObj = { text: link, type: 'link' }
+      returnArr.push(textObj, linkObj)
+      lastIndex = item.index + link.length
+      if (i === arr.length - 1 && lastIndex < text.length) {
+        returnArr.push({ text: text.slice(lastIndex), type: 'text' })
+      }
+    })
+    return returnArr
+  }
+
+  // 根据链接地址创建a标签
+  function createLink(link) {
+    const a = document.createElement("a");
+    a.href = link;
+    a.textContent = link;
+    a.target = "_blank"; // 可选：在新标签页打开链接
+    a.rel = 'noopener noreferrer nofollow'
+    return a;
+  }
+
+  // 根据文字创建文本标签
+  function createTextNode(text) {
+    const textNode = document.createTextNode(text);
+    return textNode;
+  }
+
+  // 根据类型返回不同的创建标签方法
+  function createNode(type, text) {
+    switch (type) {
+      case 'link':
+        return createLink(text);
+      case 'text':
+        return createTextNode(text);
+      default:
+        throw new Error('Invalid type');
+    }
   }
 
   /*
@@ -23,19 +102,16 @@
 }
 */
   function createTextNodeTree(matchObj = {}, node, parent) {
-    // 使用正则表达式匹配链接
-    var linkRegex = /http[s]?:\/\/[^\s\/$.?#].[^\s]*/g;
     if (node.nodeType === 3 && parent.nodeName !== "A") {
       const textContent = node.textContent;
-      let matches = textContent && textContent.match(linkRegex);
-      matches &&
-        matches.forEach((match) => {
-          if (matchObj[match] && matchObj[match].length > 0) {
-            matchObj[match].push(node)
-          } else {
-            matchObj[match] = [node]
-          }
-        });
+      let matches = getTextLinks(textContent)
+      matches.forEach((match) => {
+        if (matchObj[match] && matchObj[match].length > 0) {
+          matchObj[match].push(node)
+        } else {
+          matchObj[match] = [node]
+        }
+      });
     }
 
     for (let child of node.childNodes) {
@@ -51,30 +127,15 @@
         if (Object.hasOwnProperty.call(matchObj, match)) {
           const nodeList = removeDuplicates(matchObj[match]);
           nodeList.forEach((node) => {
-            var a = document.createElement("a");
-            a.href = match;
-            a.target = "_blank"; // 可选：在新标签页打开链接
-            a.rel = 'noopener noreferrer nofollow'
-            a.textContent = match;
-            // 创建一个包裹元素，用于放置链接（可选，如果不需要额外样式或处理，可以直接替换原文本节点）
-            var wrapper = document.createElement("span");
-            wrapper.appendChild(a);
-            // 替换原文本节点为包裹元素（或直接将链接插入到文本节点中）
-            // 注意：直接替换文本节点可能会导致样式或布局问题，因此建议使用包裹元素
-            try {
-              const fullText = node.textContent.trim()
-              const index = fullText.indexOf(match)
-              const beforeText = index !== 0 ? fullText.substring(0, index) : ''
-              const afterText = index + match.length < fullText.length ? fullText.substring(index + match.length) : ''
-
-              let beforeTextNode = beforeText && document.createTextNode(beforeText);
-              let afterTextNode = afterText && document.createTextNode(afterText);
-              beforeTextNode && node.parentNode.insertBefore(beforeTextNode, node)
-              // 修改appendChild为insertBefore，解决插入位置问题，如果当前节点有兄弟节点，就插兄弟节点前面，没有就插最后面
-              afterTextNode && node.nextSibling ? node.parentNode.insertBefore(afterTextNode, node.nextSibling) : node.parentNode.appendChild(afterTextNode)
-
-              node.parentNode.replaceChild(wrapper, node);
-            } catch (error) { }
+            const generateNodeList = splitText(node.textContent, getTextLinksList(node.textContent));
+            traverseArrayBackward(generateNodeList, ({ type, text }, i, isLast) => {
+              try {
+                isLast ? node.parentNode.replaceChild(createNode(type, text), node) :
+                  node.nextSibling ?
+                    node.parentNode.insertBefore(createNode(type, text), node.nextSibling) :
+                    node.parentNode.appendChild(createNode(type, text));
+              } catch (error) { }
+            })
           })
         }
       }
