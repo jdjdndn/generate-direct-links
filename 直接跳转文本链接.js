@@ -114,6 +114,12 @@
       });
     }
 
+    if (node.shadowRoot) {
+      const shadowRoot = node.shadowRoot
+      for (const shadowRootChild of shadowRoot.childNodes) {
+        createTextNodeTree(matchObj, shadowRootChild, shadowRoot)
+      }
+    }
     for (let child of node.childNodes) {
       createTextNodeTree(matchObj, child, node)
     }
