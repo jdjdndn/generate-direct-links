@@ -26,14 +26,14 @@
 
   // 文本全局匹配链接返回数组，数组里面是字符串
   function getTextLinks(text) {
-    const linkRegex = /http[s]?:\/\/[^\s\/$.?#].[^\s]*/g;
+    const linkRegex = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g;
     const links = text.match(linkRegex);
     return links || [];
   }
 
   // 文本全局匹配链接返回数组，数组里面是对象
   function getTextLinksList(text) {
-    const linkRegex = /http[s]?:\/\/[^\s\/$.?#].[^\s]*/g;
+    const linkRegex = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g;
     const matches = text.matchAll(linkRegex);
     const matchArr = []
     for (const match of matches) {
