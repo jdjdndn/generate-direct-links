@@ -1,11 +1,15 @@
 // ==UserScript==
 // @name         yc-直接跳转文本链接
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.3
 // @description  识别并直接跳转普通文本链接
 // @author       wcbblll
 // @match        *://*/*
+// @exclude      https://www.google.com/*
+// @exclude      https://www.google.com.hk/*
+// @exclude      https://www.baidu.com/*
 // @grant        none
+// @license      MIT
 // ==/UserScript==
 
 (function () {
@@ -34,14 +38,20 @@
 
   // 文本全局匹配链接返回数组，数组里面是对象
   function getTextLinksList(text) {
-    // const linkRegex = /https?:(\/\/)?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g;
-    const linkRegex = /((https?:\/\/)?|(\/\/))?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g;
-    const matches = text.matchAll(linkRegex);
-    const matchArr = []
-    for (const match of matches) {
-      matchArr.push(match)
+    const linkRegex = /https?:(\/\/)?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g;
+    // const linkRegex = /((https?:\/\/)?|(\/\/))?(www\.)?[a-zA-Z0-9#]{1,256}[-@:%._\+~=]*\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g;
+    const hostRegex = /\b(?!\/\/)((?:www\.)?[a-zA-Z0-9_.-]+(?:\.[a-zA-Z0-9_.-]+)*\.[a-zA-Z]{2,})\b/g
+    function matchFunc(reg, type) {
+      const matches = text.matchAll(reg);
+      const matchArr = []
+      for (const match of matches) {
+        match.type = type
+        matchArr.push(match)
+      }
+      return matchArr
     }
-    return matchArr
+    console.log([...matchFunc(linkRegex, 'url'), ...matchFunc(hostRegex, 'host')]);
+    return [...matchFunc(linkRegex, 'url'), ...matchFunc(hostRegex, 'host')];
   }
 
   /**
@@ -68,10 +78,10 @@
     return returnArr
   }
 
-  // 根据链接地址创建a标签
+  // 根据链接地址创建a标签，都当做绝对路径使用
   function createLink(link) {
     const a = document.createElement("a");
-    a.href = link;
+    a.href = link.indexOf('//') > 0 ? link : '//' + link;
     a.textContent = link;
     a.target = "_blank"; // 可选：在新标签页打开链接
     a.rel = 'noopener noreferrer nofollow'
@@ -128,33 +138,42 @@
 
     return matchObj;
   }
-  function callback(mutationsList, observer) {
-    if (lastExecutionTime + delay < Date.now()) {
-      const matchObj = createTextNodeTree({}, document.body, null);
-      for (const match in matchObj) {
-        if (Object.hasOwnProperty.call(matchObj, match)) {
-          const nodeList = removeDuplicates(matchObj[match]);
-          nodeList.forEach((node) => {
-            const generateNodeList = splitText(node.textContent, getTextLinksList(node.textContent));
-            traverseArrayBackward(generateNodeList, ({ type, text }, i, isLast) => {
-              try {
-                isLast ? node.parentNode.replaceChild(createNode(type, text), node) :
-                  node.nextSibling ?
-                    node.parentNode.insertBefore(createNode(type, text), node.nextSibling) :
-                    node.parentNode.appendChild(createNode(type, text));
-              } catch (error) { }
-            })
-          })
-        }
-      }
-      lastExecutionTime = Date.now();
-    }
+
+
+  function debounce(func, delay) {
+    let timer;
+
+    return function (...args) {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        func.apply(this, args);
+      }, delay);
+    };
   }
 
-  let observer = new MutationObserver(callback);
 
-  let delay = 500; // 间隔时间，单位毫秒
-  let lastExecutionTime = 0;
+  function callback(mutationsList, observer) {
+    const matchObj = createTextNodeTree({}, document.body, null);
+    for (const match in matchObj) {
+      if (Object.hasOwnProperty.call(matchObj, match)) {
+        const nodeList = removeDuplicates(matchObj[match]);
+        nodeList.forEach((node) => {
+          const generateNodeList = splitText(node.textContent, getTextLinksList(node.textContent));
+          traverseArrayBackward(generateNodeList, ({ type, text }, i, isLast) => {
+            try {
+              isLast ? node.parentNode.replaceChild(createNode(type, text), node) :
+                node.nextSibling ?
+                  node.parentNode.insertBefore(createNode(type, text), node.nextSibling) :
+                  node.parentNode.appendChild(createNode(type, text));
+            } catch (error) { }
+          })
+        })
+      }
+    }
+
+  }
+
+  let observer = new MutationObserver(debounce(callback, 500));
 
   observer.observe(document.body, { childList: true, attributes: true });
 })();
