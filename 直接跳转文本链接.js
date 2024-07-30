@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         yc-直接跳转文本链接
 // @namespace    http://tampermonkey.net/
-// @version      0.4
+// @version      0.6
 // @description  识别并直接跳转普通文本链接
 // @author       wcbblll
 // @match        *://*/*
+// @exclude       https://greasyfork.org/*
 // @grant        none
 // @license      MIT
 // ==/UserScript==
@@ -34,20 +35,25 @@
   }
 
   // 文本全局匹配链接返回数组，数组里面是对象
+  // 先用url匹配，匹配之后把匹配到的字符串替换为空符串在匹配host，解决url和host匹配两次的问题
   function getTextLinksList(text) {
     const linkRegex = /https?:(\/\/)?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g;
     // const linkRegex = /((https?:\/\/)?|(\/\/))?(www\.)?[a-zA-Z0-9#]{1,256}[-@:%._\+~=]*\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g;
     const hostRegex = /\b(?!\/\/)((?:www\.)?[a-zA-Z0-9_.-]+(?:\.[a-zA-Z0-9_.-]+)*\.[a-zA-Z]{2,})\b/g
+    let newText = text
+    // debugger
     function matchFunc(reg, type) {
-      const matches = text.matchAll(reg);
+      const matches = newText.matchAll(reg);
       const matchArr = []
       for (const match of matches) {
+        const matchStr = match[0]
+        const len = matchStr.length
+        newText = newText.replace(matchStr, ' '.repeat(len))
         match.type = type
         matchArr.push(match)
       }
       return matchArr
     }
-    // console.log([...matchFunc(linkRegex, 'url'), ...matchFunc(hostRegex, 'host')]);
     return [...matchFunc(linkRegex, 'url'), ...matchFunc(hostRegex, 'host')];
   }
 
@@ -111,7 +117,7 @@
 }
 */
   // 排除列表，这些里面内容不需要处理
-  const excludeList = ['A', 'SCRIPT', 'STYLE']
+  const excludeList = ['A', 'SCRIPT', 'STYLE', 'TEXTAREA', 'INPUT']
 
   function createTextNodeTree(matchObj = {}, node, parent) {
     if (node.nodeType === 3 && !excludeList.includes(parent.nodeName)) {
