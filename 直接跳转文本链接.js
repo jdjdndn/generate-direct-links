@@ -1,13 +1,10 @@
 // ==UserScript==
 // @name         yc-直接跳转文本链接
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.4
 // @description  识别并直接跳转普通文本链接
 // @author       wcbblll
 // @match        *://*/*
-// @exclude      https://www.google.com/*
-// @exclude      https://www.google.com.hk/*
-// @exclude      https://www.baidu.com/*
 // @grant        none
 // @license      MIT
 // ==/UserScript==
@@ -50,7 +47,7 @@
       }
       return matchArr
     }
-    console.log([...matchFunc(linkRegex, 'url'), ...matchFunc(hostRegex, 'host')]);
+    // console.log([...matchFunc(linkRegex, 'url'), ...matchFunc(hostRegex, 'host')]);
     return [...matchFunc(linkRegex, 'url'), ...matchFunc(hostRegex, 'host')];
   }
 
@@ -113,8 +110,11 @@
   }
 }
 */
+  // 排除列表，这些里面内容不需要处理
+  const excludeList = ['A', 'SCRIPT', 'STYLE']
+
   function createTextNodeTree(matchObj = {}, node, parent) {
-    if (node.nodeType === 3 && parent.nodeName !== "A") {
+    if (node.nodeType === 3 && !excludeList.includes(parent.nodeName)) {
       const textContent = node.textContent;
       let matches = getTextLinks(textContent)
       matches.forEach((match) => {
