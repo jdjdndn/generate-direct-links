@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name         yc-直接跳转文本链接
 // @namespace    http://tampermonkey.net/
-// @version      0.6
+// @version      0.7
 // @description  识别并直接跳转普通文本链接
 // @author       wcbblll
 // @match        *://*/*
 // @exclude       https://greasyfork.org/*
+// @run-at      document-idle
 // @grant        none
 // @license      MIT
 // ==/UserScript==
@@ -37,7 +38,7 @@
   // 文本全局匹配链接返回数组，数组里面是对象
   // 先用url匹配，匹配之后把匹配到的字符串替换为空符串在匹配host，解决url和host匹配两次的问题
   function getTextLinksList(text) {
-    const linkRegex = /https?:(\/\/)?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g;
+    const linkRegex = /((https?:\/\/)?|(\/\/))?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g;
     // const linkRegex = /((https?:\/\/)?|(\/\/))?(www\.)?[a-zA-Z0-9#]{1,256}[-@:%._\+~=]*\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g;
     const hostRegex = /\b(?!\/\/)((?:www\.)?[a-zA-Z0-9_.-]+(?:\.[a-zA-Z0-9_.-]+)*\.[a-zA-Z]{2,})\b/g
     let newText = text
@@ -84,7 +85,7 @@
   // 根据链接地址创建a标签，都当做绝对路径使用
   function createLink(link) {
     const a = document.createElement("a");
-    a.href = link.indexOf('//') > 0 ? link : '//' + link;
+    a.href = link.indexOf('//') > -1 ? link : '//' + link;
     a.textContent = link;
     a.target = "_blank"; // 可选：在新标签页打开链接
     a.rel = 'noopener noreferrer nofollow'
@@ -120,7 +121,8 @@
   const excludeList = ['A', 'SCRIPT', 'STYLE', 'TEXTAREA', 'INPUT']
 
   function createTextNodeTree(matchObj = {}, node, parent) {
-    if (node.nodeType === 3 && !excludeList.includes(parent.nodeName)) {
+    if (excludeList.includes(parent.nodeName)) return matchObj
+    if (node.nodeType === 3) {
       const textContent = node.textContent;
       let matches = getTextLinks(textContent)
       matches.forEach((match) => {
