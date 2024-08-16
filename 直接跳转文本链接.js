@@ -121,7 +121,7 @@
   const excludeList = ['A', 'SCRIPT', 'STYLE', 'TEXTAREA', 'INPUT']
 
   function createTextNodeTree(matchObj = {}, node, parent) {
-    if (excludeList.includes(parent.nodeName)) return matchObj
+    if (parent && excludeList.includes(parent.nodeName)) return matchObj
     if (node.nodeType === 3) {
       const textContent = node.textContent;
       let matches = getTextLinks(textContent)
