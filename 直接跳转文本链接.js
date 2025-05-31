@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         yc-直接跳转文本链接
+// @name         直接跳转文本链接
 // @namespace    http://tampermonkey.net/
-// @version      0.7
+// @version      0.8
 // @description  识别并直接跳转普通文本链接
 // @author       wcbblll
 // @match        *://*/*
@@ -27,18 +27,19 @@
     }
   }
 
+  let linkRegex = /((https?:\/\/)?|(\/\/))?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g;
   // 文本全局匹配链接返回数组，数组里面是字符串
   function getTextLinks(text) {
     // const linkRegex = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g;
-    const linkRegex = /((https?:\/\/)?|(\/\/))?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g;
+    // const linkRegex = /((https?:\/\/)?|(\/\/))?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g;
     const links = text.match(linkRegex);
-    return links || [];
+    return filterLinks(links || []);
   }
 
   // 文本全局匹配链接返回数组，数组里面是对象
   // 先用url匹配，匹配之后把匹配到的字符串替换为空符串在匹配host，解决url和host匹配两次的问题
   function getTextLinksList(text) {
-    const linkRegex = /((https?:\/\/)?|(\/\/))?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g;
+    // const linkRegex = /((https?:\/\/)?|(\/\/))?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g;
     // const linkRegex = /((https?:\/\/)?|(\/\/))?(www\.)?[a-zA-Z0-9#]{1,256}[-@:%._\+~=]*\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g;
     const hostRegex = /\b(?!\/\/)((?:www\.)?[a-zA-Z0-9_.-]+(?:\.[a-zA-Z0-9_.-]+)*\.[a-zA-Z]{2,})\b/g
     let newText = text
@@ -55,7 +56,36 @@
       }
       return matchArr
     }
-    return [...matchFunc(linkRegex, 'url'), ...matchFunc(hostRegex, 'host')];
+    return filterLinks([...matchFunc(linkRegex, 'url'), ...matchFunc(hostRegex, 'host')])
+  }
+
+  // 传参为一维数组或二维数组，二维数组取第一项，对传参进行过滤，链接必须包含顶级域名，ip必须是合法的ipv4地址。过滤，减少误判情况
+  function filterLinks(links) {
+    if (!links) return links
+    // 常用的顶级域名列表，通过过滤，减少误判情况
+    // eslint-disable-next-line
+    const yuMingList = ['com', 'net', 'org', 'edu', 'gov', 'mil', 'info', 'biz', 'app', 'shop', 'store', 'xyz', 'top', 'live', 'cn', 'us', 'uk', 'jp', 'de', 'fr', 'ca', 'hk', 'tw', 'mo', 'eu', 'in', 'tv', 'cc', 'cloud']
+    function isLink(link) {
+      const find = yuMingList.find(item => link.includes(`.${item}`))
+      if (find) return true
+      const ipv4List = link.split('.')
+      // ipv4必须包含4位数字
+      const ipv4 = ipv4List.length >= 4 && ipv4List.reduce((pre, cur) => {
+        if (Number(cur) === Number(cur)) pre++
+        return pre
+      }, 0) >= 4
+      if (ipv4) return true
+      return false
+    }
+    return links.filter((item) => {
+      if (Array.isArray(item)) {
+        // 二维数组
+        return isLink(item[0])
+      } else {
+        // 普通数组
+        return isLink(item)
+      }
+    })
   }
 
   /**
@@ -89,6 +119,7 @@
     a.textContent = link;
     a.target = "_blank"; // 可选：在新标签页打开链接
     a.rel = 'noopener noreferrer nofollow'
+    a.setAttribute('text-link', true)
     return a;
   }
 
@@ -181,7 +212,7 @@
 
   }
 
-  let observer = new MutationObserver(debounce(callback, 500));
+  let observer = new MutationObserver(debounce(callback, 1000));
 
   observer.observe(document.body, { childList: true, attributes: true });
 })();
